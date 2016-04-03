@@ -19,7 +19,7 @@ function getVit (vital) {
 
 var demo = {
     serviceUrl: "https://fhir-open-api-dstu2.smarthealthit.org",        //allows you to connect to your smar server and query a patient 
-    patientId: "hca-pat-55"  // josuah p willams hca-pat-55 1137192
+    patientId: "99912345"  // josuah p willams hca-pat-55 1137192
 };
 
 // Create a FHIR client (server URL, patient id in `demo`)
@@ -51,7 +51,7 @@ pt.api.search({type: "MedicationOrder"})
         });
     });
 
-    
+  
     // A more advanced query: search for vitals
 pt.api.search({type: "Observation", query: {code:  {$or: ['26499-4', '26515-7']}}}) // it worked you need to identifey what code you waan
     .then(function(prescriptions) {
@@ -59,12 +59,100 @@ pt.api.search({type: "Observation", query: {code:  {$or: ['26499-4', '26515-7']}
               var vit= prescription.resource;
             var row = $("<h2>"+vit.code.text+"</h2>"+ //get name of the coded oberservation type
                 "<a class='list-group-item'> " +  vit.valueQuantity.value+" "+vit.valueQuantity.unit+"   date taken:  " +vit.meta.lastUpdated+"</a>");
+         
             console.log(vit)
             $("#vital_list").append(row);
         });
     });
     
-    
+    pt.api.search({type: "Observation", query: {code:  {$or: ['8480-6',"8462-4" ]}}}) // it worked you need to identifey what code you waan
+    .then(function(bps) {
+        var dat=[];
+       bps.data.entry.forEach(function(bp){            // how can we access diffrent datat from the model for a set of blood pressures do it for one blood pressure
+              var blood= bp.resource;
+            var row = $("<h2>"+blood.code.text+"</h2>"+ //get name of the coded oberservation type
+                "<a class='list-group-item'> " +  blood.valueQuantity.value+" "+blood.valueQuantity.unit+"   date taken:  " +blood.meta.lastUpdated+"</a>");
+            // console.log(blood.valueQuantity.value)
+            console.log(blood.code.coding[0].code)
+            if(blood.code.coding[0].code=="8480-6"){
+            dat.push(blood.valueQuantity.value)
+            }
+             console.log(dat)
+         
+            $("#bp_list").append(row);
+        });
+        var data =dat,
+			w = 400,
+			h = 200,
+			margin = 20,
+			y = d3.scale.linear().domain([0, d3.max(data)]).range([0 + margin, h - margin]),
+			x = d3.scale.linear().domain([0, data.length]).range([0 + margin, w - margin])
+
+			var vis = d3.select("body")
+			    .append("svg:svg")
+			    .attr("width", w)
+			    .attr("height", h)
+
+			var g = vis.append("svg:g")
+			    .attr("transform", "translate(0, 200)");
+			
+			var line = d3.svg.line()
+			    .x(function(d,i) { return x(i); })
+			    .y(function(d) { return -1 * y(d); })
+			
+			g.append("svg:path").attr("d", line(data));
+			
+			g.append("svg:line")
+			    .attr("x1", x(0))
+			    .attr("y1", -1 * y(0))
+			    .attr("x2", x(w))
+			    .attr("y2", -1 * y(0))
+
+			g.append("svg:line")
+			    .attr("x1", x(0))
+			    .attr("y1", -1 * y(0))
+			    .attr("x2", x(0))
+			    .attr("y2", -1 * y(d3.max(data)))
+			
+			g.selectAll(".xLabel")
+			    .data(x.ticks(5))
+			    .enter().append("svg:text")
+			    .attr("class", "xLabel")
+			    .text(String)
+			    .attr("x", function(d) { return x(d) })
+			    .attr("y", 0)
+			    .attr("text-anchor", "middle")
+
+			g.selectAll(".yLabel")
+			    .data(y.ticks(4))
+			    .enter().append("svg:text")
+			    .attr("class", "yLabel")
+			    .text(String)
+			    .attr("x", 0)
+			    .attr("y", function(d) { return -1 * y(d) })
+			    .attr("text-anchor", "right")
+			    .attr("dy", 4)
+			
+			g.selectAll(".xTicks")
+			    .data(x.ticks(5))
+			    .enter().append("svg:line")
+			    .attr("class", "xTicks")
+			    .attr("x1", function(d) { return x(d); })
+			    .attr("y1", -1 * y(0))
+			    .attr("x2", function(d) { return x(d); })
+			    .attr("y2", -1 * y(-0.3))
+
+			g.selectAll(".yTicks")
+			    .data(y.ticks(4))
+			    .enter().append("svg:line")
+			    .attr("class", "yTicks")
+			    .attr("y1", function(d) { return -1 * y(d); })
+			    .attr("x1", x(-0.3))
+			    .attr("y2", function(d) { return -1 * y(d); })
+			    .attr("x2", x(0))
+
+         
+    });
     
     // pt.api.search({type: "Observation"})
     // .then(function(prescriptions) {
