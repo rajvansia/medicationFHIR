@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta http-equiv="cache-control" content="max-age=0" />
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="expires" content="0" />
+<meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT" />
+<meta http-equiv="pragma" content="no-cache" />
+<style>
+
+svg {
+  font: 10px sans-serif;
+}
+
+.line {
+  stroke-width: 1;
+  fill: none;
+  clip-path: url(#clip);
+}
+
+.line3 {
+  stroke-width: 1;
+  fill: none;
+  clip-path: url(#clip);
+}
+.area {
+  clip-path: url(#clip);
+  stroke-width: 0;
+  opacity: 0.7;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.brush .extent {
+  stroke: #fff;
+  fill-opacity: .125;
+  shape-rendering: crispEdges;
+}
+
+/* Statistic lines */
+
+.meanline {
+  stroke: blue;
+  fill: none;
+  stroke-width: 2;
+  clip-path: url(#clip);
+}
+
+.meanline-label {
+  fill: blue;
+  stroke-width: 1;
+  font-size: 14px;
+}
+
+.sdline {
+  stroke: red;
+  fill: none;
+  stroke-width: 2;
+  stroke-dasharray: 10,10;
+  clip-path: url(#clip);
+}
+
+.sdline-label {
+  fill: red;
+  stroke-width: 1;
+  font-size: 14px;
+}
+
+.label {
+  fill: black;
+  stroke-width: 1;
+  font-size: 14px;
+}
+</style>
+<body>
+<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+ 	<script type="text/javascript" src="https://cdn.rawgit.com/smart-on-fhir/client-js/v0.1.1/dist/fhir-client.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+<script>
+
+var demo = {
+    serviceUrl: "https://fhir-open-api-dstu2.smarthealthit.org",        //allows you to connect to your smar server and query a patient 
+    patientId: "99912345"  // josuah p willams hca-pat-55 1137192
+};
+
+// Create a FHIR client (server URL, patient id in `demo`)
+var smart = FHIR.client(demo),
+    pt = smart.patient;                        //you will then store your queryed patient in a varible
+
+// Create a patient banner by fetching + rendering demographics
+pt.read()
+    .then(function (p) {
+    var name = p.name[0];
+    var formatted = name.given.join(" ") + " " + name.family;
+    $("#patient_name").text(formatted);
+    console.log(name.given)
+});
+
+pt.read()
+    .then(function (p) {
+    var phone = p.telecom[0];
+    var formatted = phone.value;
+    $("#patient_phone").text(formatted);
+});
+ pt.api.search({type: "Observation", query: {code:  {$or: ['8480-6',"8462-4" ]}}}) // it worked you need to identifey what code you waan
+    .then(function(bps) {
+        var data=[];
+        var datas=[];
+       bps.data.entry.forEach(function(bp){            // how can we access diffrent datat from the model for a set of blood pressures do it for one blood pressure
+              var blood= bp.resource;
+            var row = $("<h2>"+blood.code.text+"</h2>"+ //get name of the coded oberservation type
+                "<a class='list-group-item'> " +  blood.valueQuantity.value+" "+blood.valueQuantity.unit+"   date taken:  " +blood.meta.lastUpdated+"</a>");
+            // console.log(blood.valueQuantity.value)
+            // console.log(blood.code.coding[0].code)
+            if(blood.code.coding[0].code=="8480-6" ){
+                //   dat.push(blood.valueQuantity.value)
+            data.push({"close": blood.valueQuantity.value, "date": blood.effectiveDateTime, "type": blood.code.text})
+            }
+            if(blood.code.coding[0].code=="8462-4"||blood.code.coding[0].code=="8480-6"  ){
+                //   dat.push(blood.valueQuantity.value)
+            datas.push({"close": blood.valueQuantity.value, "date": blood.effectiveDateTime, "type": blood.code.text, "code": blood.code.coding[0].code})
+            }
+             console.log(data)
+            $("#bp_list").append(row);
+        });
+        console.log(data[0])
+            console.log(datas[0])
+// A more advanced query: search for active Prescriptions, including med 
+var margin = {top: 10, right: 10, bottom: 100, left: 40},
+    margin2 = {top: 230, right: 10, bottom: 20, left: 40},
+    width = 1200 - margin.left - margin.right,
+    height = 300 - margin.top - margin.bottom,
+    height2 = 300 - margin2.top - margin2.bottom;
+
+var parseDate = d3.time.format("%Y-%m-%d").parse;
+
+var color = "#27ae60";
+
+var x = d3.time.scale().range([0, width]),
+    x2 = d3.time.scale().range([0, width]),
+    y = d3.scale.linear().range([height, 0]),
+    y2 = d3.scale.linear().range([height2, 0]);
+
+var xAxis = d3.svg.axis().scale(x).orient("bottom"),
+    xAxis2 = d3.svg.axis().scale(x2).orient("bottom"),
+    yAxis = d3.svg.axis().scale(y).orient("left");
+
+var brush = d3.svg.brush()
+    .x(x2)
+    .on("brush", brushed)
+    .on("brushend", brushend);
+
+var area = d3.svg.area()
+    .interpolate("monotone")
+    .x(function(d) { return x(d.date); })
+    .y0(height)
+    .y1(function(d) { return y(d.close-20); });
+
+var line = d3.svg.line()
+  .interpolate("monotone")
+  .x(function(d) { return x(d.date); })
+  .y(function(d) { return y(d.close); });
+  var line3 = d3.svg.line()
+  .interpolate("monotone")
+  .x(function(d) { return x(d.date); })
+  .y(function(d) { return y(d.close-10); });
+
+var area2 = d3.svg.area()
+    .interpolate("monotone")
+    .x(function(d) { return x2(d.date); })
+    .y0(height2)
+    .y1(function(d) { return y2(d.close); });
+
+var line2 = d3.svg.line()
+  .interpolate("monotone")
+  .x(function(d) { return x2(d.date); })
+  .y(function(d) { return y2(d.close); });
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom);
+
+svg.append("defs").append("clipPath")
+    .attr("id", "clip")
+  .append("rect")
+    .attr("width", width)
+    .attr("height", height);
+
+var focus = svg.append("g")
+    .attr("class", "focus")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+var context = svg.append("g")
+    .attr("class", "context")
+    .attr("transform", "translate(" + margin2.left + "," + margin2.top + ")");
+
+// var data = [{date: '2006-04-14', close: 45.3},
+//             {date: '2006-05-14', close: 35.6},
+//             {date: '2006-06-14', close: 28.4},
+//             {date: 'Apr 2000', close: 23.3},
+//             {date: 'May 2000', close: 29.7},
+//             {date: 'Jun 2000', close: 32.4},
+//             {date: 'Jul 2000', close: 37.9},
+//             {date: 'Aug 2000', close: 35.2},
+//             {date: 'Sep 2000', close: 34.3},
+//             {date: 'Oct 2000', close: 32.5},
+//             {date: 'Nov 2000', close: 36.7},
+//             {date: 'Dec 2000', close: 33.6},
+//             {date: 'Jan 2001', close: 38.3},
+//             {date: 'Feb 2001', close: 45.6},
+//             {date: 'Mar 2001', close: 52.4},
+//             {date: 'Apr 2001', close: 49.3},
+//             {date: 'May 2001', close: 52.7},
+//             {date: 'Jun 2001', close: 45.4},
+//             {date: 'Jul 2001', close: 37.9},
+//             {date: 'Aug 2001', close: 33.2},
+//             {date: 'Sep 2001', close: 29.3},
+//             {date: 'Oct 2001', close: 35.5},
+//             {date: 'Nov 2001', close: 40.7},
+//             {date: 'Dec 2001', close: 42.6}];
+
+data.forEach(function(d) {
+  d.date = parseDate(d.date);
+  d.close = +d.close;
+});
+
+x.domain(d3.extent(data.map(function(d) { return d.date; })));
+y.domain([0, d3.max(data.map(function(d) { return d.close; }))]);
+x2.domain(x.domain());
+y2.domain(y.domain());
+
+focus.append("path")
+    .datum(data)
+    .attr("class", "area")
+    .attr("fill", d3.rgb(color).brighter(2))
+    .attr("d", area);
+
+focus.append("path")
+    .datum(data)
+    .attr("class", "line")
+    .attr("stroke", "blue")
+    .attr("d", line);
+focus.append("path")
+    .datum(data)
+    .attr("class", "line3")
+    .attr("stroke", color)
+    .attr("d", line3);
+    
+focus.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xAxis);
+
+focus.append("g")
+    .attr("class", "y axis")
+    .call(yAxis);
+
+context.append("path")
+    .datum(data)
+    .attr("class", "area")
+    .attr("fill", d3.rgb(color).brighter(2))
+    .attr("d", area2);
+
+context.append("path")
+    .datum(data)
+    .attr("class", "line")
+    .attr("stroke", color)
+    .attr("d", line2);
+
+context.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height2 + ")")
+    .call(xAxis2);
+
+context.append("g")
+    .attr("class", "x brush")
+    .call(brush)
+  .selectAll("rect")
+    .attr("y", -6)
+    .attr("height", height2 + 7);
+
+// Statistic lines and labels
+// var statisticData = calcMeanSdVar(data);
+// var meanData = [{date: data[0].date, close: statisticData.mean}, 
+//                 {date: data[data.length - 1].date, close: statisticData.mean}];
+
+// var lineStatistic = d3.svg.line()            
+//     .x(function(d) { return x(d.date); })
+//     .y(function(d) { return y(d.close); });
+ var dots = focus.append("g");
+    dots.attr("clip-path", "url(#clip)");
+dots.selectAll("dot")
+        .data(data)
+    .enter().append("circle")
+     .attr('class', 'dot')
+        .attr("r", 3.5)
+        .style("stroke", function(d){if(d.code=="8462-4"){return "blue"}else if(d.code=='8480-6'){return "red"} })
+        .attr("cx", function(d) { return x(d.date); })
+        .attr("cy", function(d) { return y(d.close); });
+        
+    //     focus.append("g")
+    // .datum(data)
+    // .attr("class", "dots")
+    // .attr("fill", d3.rgb(color).brighter(2))
+    // .attr("d", dots);
+// focus.append('path')
+//   .datum(meanData)
+//   .attr("class", "meanline")
+//   .attr("d", lineStatistic );
+
+// focus.append("text")
+//   .attr("x", 10)
+//   .attr("y", height - margin.top)
+//   .attr("dy", ".35em")
+//   .attr("class", "meanline-label")
+//   .text("Mean: " + statisticData.mean.toFixed(2) );
+
+// var sdMinData = [{date: data[0].date, close: statisticData.mean - statisticData.deviation}, 
+//                  {date: data[data.length - 1].date, close: statisticData.mean - statisticData.deviation}];
+
+// focus.append('path')
+//   .datum(sdMinData)
+//   .attr("class", "sdline min")
+//   .attr("d", lineStatistic );
+
+// var sdMaxData = [{date: data[0].date, close: statisticData.mean + statisticData.deviation}, 
+//                  {date: data[data.length - 1].date, close: statisticData.mean + statisticData.deviation}];
+
+// focus.append('path')
+//   .datum(sdMaxData)
+//   .attr("class", "sdline max")
+//   .attr("d", lineStatistic );
+
+// focus.append("text")
+//   .attr("x", 110)
+//   .attr("y", height - margin.top)
+//   .attr("dy", ".35em")
+//   .attr("class", "sdline-label")
+//   .text("Standard Deviation: " + statisticData.deviation.toFixed(2) );
+
+// More statistic labels
+// focus.append("text")
+//   .attr("x", 310)
+//   .attr("y", height - margin.top)
+//   .attr("dy", ".35em")
+//   .attr("class", "label variance")
+//   .text("Variance: " + statisticData.variance.toFixed(2) );
+
+function brushed() {
+  x.domain(brush.empty() ? x2.domain() : brush.extent());
+  focus.select(".area").attr("d", area);
+  focus.select(".line").attr("d", line);
+   focus.select(".line3").attr("d", line3);
+  focus.select(".x.axis").call(xAxis);
+    dots.selectAll(".dot") .attr("cx", function(d) { return x(d.date); })
+        .attr("cy", function(d) { return y(d.close); });
+        
+}
+
+function brushend() {
+//   var extent = brush.extent();
+
+  // Retrieve brushed data
+//   var extentData = data.filter(function(d) { return extent[0] <= d.date && d.date <= extent[1] });
+
+//   statisticData = calcMeanSdVar(extentData);
+//   meanData = [{date: extentData[0].date, close: statisticData.mean}, 
+//               {date: extentData[extentData.length - 1].date, close: statisticData.mean}];
+//   focus.select(".meanline").data([meanData]).attr("d", lineStatistic);
+//   focus.select(".meanline-label").text("Mean: " + statisticData.mean.toFixed(2) );
+
+//   var sdMaxData = [{date: extentData[0].date, close: statisticData.mean + statisticData.deviation}, 
+//                   {date: extentData[extentData.length - 1].date, close: statisticData.mean + statisticData.deviation}];
+//   focus.select(".max").data([sdMaxData]).attr("d", lineStatistic);
+
+//   var sdMinData = [{date: extentData[0].date, close: statisticData.mean - statisticData.deviation}, 
+//                   {date: extentData[extentData.length - 1].date, close: statisticData.mean - statisticData.deviation}];
+//   focus.select(".min").data([sdMinData]).attr("d", lineStatistic);
+
+//   focus.select(".sdline-label").text("Standard Deviation: " + statisticData.deviation.toFixed(2) );
+
+//   focus.select(".variance").text("Variance: " + statisticData.variance.toFixed(2) );
+}
+
+// function calcMeanSdVar(values) {
+//   var r = {mean: 0, variance: 0, deviation: 0}, t = values.length;
+//   for(var m, s = 0, l = t; l--; s += parseInt(values[l].close));
+//   for(m = r.mean = s / t, l = t, s = 0; l--; s += Math.pow(parseInt(values[l].close) - m, 2));
+//   return r.deviation = Math.sqrt(r.variance = s / t), r;
+// }
+});
+</script>

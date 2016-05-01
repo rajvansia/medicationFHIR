@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta http-equiv="cache-control" content="max-age=0" />
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="expires" content="0" />
+<meta http-equiv="pragma" content="no-cache" />
+<script type="text/javascript" src="shared.js"></script>
+<script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+
+<style>
+/*-----------style-------------------*/
+body {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+
+.line {
+  stroke: black;
+  fill: none;
+  stroke-width: 0.75px;
+}
+
+.line.line0 {
+  stroke: steelblue;
+stroke-width: 1;
+}
+
+.line.line1 {
+  
+}
+
+.overlay {
+  fill: none;
+  pointer-events: all;
+}
+
+.focus circle {
+  fill: none;
+}
+
+.focus circle.y0 {
+  stroke: blue;
+}
+
+.focus circle.y1 {
+  stroke: red;
+}
+
+.focus line {
+  stroke: purple;
+  shape-rendering: crispEdges;
+}
+
+.focus line.y0 {
+  stroke: steelblue;
+  stroke-dasharray: 3 3;
+  opacity: .5;
+}
+
+.focus line.y1 {
+  stroke: indianred;
+  stroke-dasharray: 3 3;
+  opacity: .5;
+}
+
+.brush .extent {
+  stroke: #fff;
+  fill-opacity: .125;
+  shape-rendering: crispEdges;
+}
+</style>
+<body>
+<script type="text/javascript" src="d3_test/d3.min.js"></script>
+<script>
+/*-------------------global Variables-------------------------*/
+var globalMargin = {top: 10, right: 50, bottom: 10, left: 50};
+var svgPadding=30;
+var i=0,j=0,counter=0;	
+var globalHeight = 400-svgPadding;
+
+
+plot();	//plot() function Call
+
+
+/*------------------Plot Function Definition------------------------------*/
+function plot(){
+
+
+
+//Margins
+var main_margin = {top: 20, right: 190, bottom: 100, left: 60},
+    mini_margin = {top: 280, right: 190, bottom: 30, left: 60},
+    main_width = 1260 - main_margin.left - main_margin.right,
+    main_height = 350 - main_margin.top - main_margin.bottom,
+    mini_height = 350 - mini_margin.top - mini_margin.bottom;
+
+var date=window.sessionStorage.getItem("date");
+//Date formatting
+var formatDate = d3.time.format("%d/%m/%Y %X"),
+    parseDate = formatDate.parse,
+    bisectDate = d3.bisector(function(d) { return d.date; }).left,
+    formatOutput0 = function(d) { return formatDate(d.date) + " - " + d.a ; };
+    
+//X-scale Range
+var main_x = d3.time.scale()
+    .range([0, main_width]),
+
+//mini-X(Focus) scale
+    mini_x = d3.time.scale()
+    .range([0, main_width]);
+
+
+//Y-Scale Range
+var main_y0 = d3.scale.linear()
+    .range([main_height, 0]),
+
+//mini-Y(Focus) scale
+    mini_y0 = d3.scale.linear()
+    .range([mini_height, 0]);
+
+//X-Axis
+var main_xAxis = d3.svg.axis()
+    .scale(main_x)
+    .orient("bottom"),
+//mini-X Axis
+    mini_xAxis = d3.svg.axis()
+    .scale(mini_x)
+    .orient("bottom");
+//Y-Axis
+var main_yAxisLeft = d3.svg.axis()
+    .scale(main_y0)
+    .orient("left");
+
+//Brush
+var brush = d3.svg.brush()
+    .x(mini_x)
+    .on("brush", brush);	//Call function brush()
+//Main line(graph)
+var main_line0 = d3.svg.line()
+    .x(function(d) { return main_x(d.date); })
+    .y(function(d) { return main_y0(d.a); });
+
+//Mini line(graph)
+var mini_line0 = d3.svg.line()
+    .x(function(d) { return mini_x(d.date); })
+    .y(function(d) { return mini_y0(d.a); });
+
+svg.selectAll("dot")
+        .data(data)
+    .enter().append("circle")
+        .attr("r", 3.5)
+        .style("stroke", function(d){if(d.code=="8462-4"){return "blue"}else if(d.code=='8480-6'){return "red"} })
+        .attr("cx", function(d) { return main_x(d.date); })
+        .attr("cy", function(d) { return main_y0(d.close); });
+//Define SVG
+var svg = d3.select("body").append("svg")
+.attr("width", main_width+main_margin.left+main_margin.right)
+    .attr("height", globalHeight)
+.attr("x",globalMargin.top)
+    .attr("y",(globalHeight+svgPadding)*counter);
+
+//Define Clip path on which the line graph is drawn
+
+svg.append("defs").append("clipPath")
+    .attr("id", "clip")
+  .append("rect")
+    .attr("width", main_width)
+    .attr("height", main_height);
+
+//plot main and mini
+var main = svg.append("g")
+    .attr("transform", "translate(" + main_margin.left + "," + main_margin.top + ")");
+
+var mini = svg.append("g")
+    .attr("transform", "translate(" + mini_margin.left + "," + mini_margin.top + ")");
+
+/*------------------Load CSV Data------------------------*/
+
+/*
+d3.csv(file, function(data) {
+return data;
+
+}, function(error, rows) {
+window["data"] = rows;
+console.log(window);
+});149-5.01
+
+*/
+
+
+d3.csv("ECG2_data.csv", function(error, data) {
+
+var start = parseInt(window.sessionStorage.getItem("start"));
+var width = parseInt(window.sessionStorage.getItem("width"));
+var i=0;
+//motif.domain(d3.keys(data[0]).filter(function(key) { return key !== "date"; }));
+   data.forEach(function(d) {
+     d.date = parseDate(d.date);
+     d.a = +d.a;	
+   });
+//Sort date wise if it is not sorted
+  data.sort(function(a, b) {
+    return a.date - b.date;
+  });
+
+//main_y.domain(d3.keys(data[0]).filter(function(key) { return key !== "date"; }));
+//All scale Domains
+  main_x.domain([data[0].date, data[data.length - 1].date]);
+  main_y0.domain([d3.min(data,function(d){ return d.a;})/1.2, d3.max(data, function(d) { return d.a; })*1.2]);
+  mini_x.domain(main_x.domain());
+  mini_y0.domain(main_y0.domain());
+
+
+var motif = window.sessionStorage.getItem("motif");
+console.log(motif);
+
+d3.tsv("149-5.01.csv", function(error, motif_data) {
+
+motif_data.forEach(function(d){
+  period = data.filter(function(row,i){
+     var dateNum = +row[i];
+     return i >= d.start && i <= parseInt(d.start)+parseInt(d.width);
+   });
+
+/*-----------------------Draw motifs---------------------------*/
+
+main.append("path")
+      .datum(period)
+      .attr("clip-path", "url(#clip)")
+      .attr("class", "line line1")
+      .attr("d", main_line0)
+      .style("stroke","red")
+.style("stroke-width","2");
+});
+});
+ /*-----------------------Draw all the elements---------------------------*/
+  main.append("path")
+      .datum(data)
+      .attr("clip-path", "url(#clip)")
+      .attr("class", "line line0")
+      .attr("d", main_line0);
+
+
+
+  main.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + main_height + ")")
+      .call(main_xAxis);
+
+  main.append("g")
+      .attr("class", "y axis axisLeft")
+      .call(main_yAxisLeft)
+    .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end");
+
+  mini.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + mini_height + ")")
+      .call(main_xAxis);
+
+  mini.append("path")
+      .datum(data)
+      .attr("class", "line")
+      .attr("d", mini_line0);
+
+  mini.append("g")
+      .attr("class", "x brush")
+      .call(brush)
+    .selectAll("rect")
+      .attr("y", -6)
+      .attr("height", mini_height + 7);
+
+  var focus = main.append("g")
+      .attr("class", "focus")
+      .style("display", "none");
+
+
+  focus.append("line")
+      .attr("class", "x")
+      .attr("y1", main_y0(0) - 6);
+
+  
+  focus.append("line")
+      .attr("class", "y0")
+      .attr("x1", main_width - 6)
+      .attr("x2", main_width + 6);
+
+ 
+  focus.append("circle")
+      .attr("class", "y0")
+      .attr("r", 4);
+
+  focus.append("text")
+      .attr("class", "y0")
+      .attr("dy", "-1em");
+
+/*--------------------On Mouse Move------------------------*/
+  main.append("rect")
+      .attr("class", "overlay")
+      .attr("width", main_width)
+      .attr("height", main_height)
+      .on("mouseover", function() { focus.style("display", null); })
+      .on("mouseout", function() { focus.style("display", "none"); })
+      .on("mousemove", mousemove);	//Call Function mousemove()
+
+//function mousemove() definition
+   function mousemove() {
+    var x0 = main_x.invert(d3.mouse(this)[0]),
+        i = bisectDate(data, x0, 1),
+        d0 = data[i - 1],
+        d1 = data[i],
+        d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+    focus.select("circle.y0").attr("transform", "translate(" + main_x(d.date) + "," + main_y0(d.a) + ")");
+    focus.select("text.y0").attr("transform", "translate(" + main_width + "," + 0 + ")").text(formatOutput0(d));
+   
+
+    focus.select(".x").attr("transform", "translate(" + main_x(d.date) + ",0)");
+    focus.select(".y0").attr("transform", "translate(" + main_width * -1 + ", " + main_y0(d.a) + ")").attr("x2", main_width + main_x(d.date));
+
+  }
+counter+=350;
+
+});
+/*-----------------function brush() definition----------------*/
+function brush() {
+  main_x.domain(brush.empty() ? mini_x.domain() : brush.extent());
+  main.select(".line0").attr("d", main_line0);
+  main.selectAll(".line1").attr("d", main_line0);
+ 
+  main.select(".x.axis").call(main_xAxis);
+  
+}
+}
+
+

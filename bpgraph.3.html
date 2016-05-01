@@ -23,74 +23,19 @@ path {
 
 <!-- load the d3.js library -->    
 <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
- 	<script type="text/javascript" src="https://cdn.rawgit.com/smart-on-fhir/client-js/v0.1.1/dist/fhir-client.js"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+
 <script>
 
-var demo = {
-    serviceUrl: "https://fhir-open-api-dstu2.smarthealthit.org",        //allows you to connect to your smar server and query a patient 
-    patientId: "99912345"  // josuah p willams hca-pat-55 1137192
-};
-
-// Create a FHIR client (server URL, patient id in `demo`)
-var smart = FHIR.client(demo),
-    pt = smart.patient;                        //you will then store your queryed patient in a varible
-
-// Create a patient banner by fetching + rendering demographics
-pt.read()
-    .then(function (p) {
-    var name = p.name[0];
-    var formatted = name.given.join(" ") + " " + name.family;
-    $("#patient_name").text(formatted);
-    console.log(name.given)
-});
-
-pt.read()
-    .then(function (p) {
-    var phone = p.telecom[0];
-    var formatted = phone.value;
-    $("#patient_phone").text(formatted);
-});
-
-// A more advanced query: search for active Prescriptions, including med details
-  
-    // A more advanced query: search for vitals
-
-    
-    pt.api.search({type: "Observation", query: {code:  {$or: ['8480-6',"8462-4" ]}}}) // it worked you need to identifey what code you waan
-    .then(function(bps) {
-        var data=[];
-       bps.data.entry.forEach(function(bp){            // how can we access diffrent datat from the model for a set of blood pressures do it for one blood pressure
-              var blood= bp.resource;
-            var row = $("<h2>"+blood.code.text+"</h2>"+ //get name of the coded oberservation type
-                "<a class='list-group-item'> " +  blood.valueQuantity.value+" "+blood.valueQuantity.unit+"   date taken:  " +blood.meta.lastUpdated+"</a>");
-            // console.log(blood.valueQuantity.value)
-            // console.log(blood.code.coding[0].code)
-            if(blood.code.coding[0].code=="8480-6"||blood.code.coding[0].code=="8462-4" ){
-                //   dat.push(blood.valueQuantity.value)
-            data.push({"close": blood.valueQuantity.value, "date": blood.effectiveDateTime, "type": blood.code.text})
-            }
-            
-            $("#bp_list").append(row);
-        });
-        console.log(data[0])
-       
 // Set the dimensions of the canvas / graph
-var margin = {top: 30, right: 20, bottom: 30, left: 80},
-    width = 800 - margin.left - margin.right,
+var margin = {top: 30, right: 20, bottom: 30, left: 50},
+    width = 600 - margin.left - margin.right,
     height = 270 - margin.top - margin.bottom;
 
 // Parse the date / time
-var parseDate = d3.time.format("%Y-%m-%d").parse,
-    formatDate = d3.time.format("%d-%b-%Y"),
+var parseDate = d3.time.format("%d-%b-%y").parse,
+    formatDate = d3.time.format("%d-%b"),
     bisectDate = d3.bisector(function(d) { return d.date; }).left;
-     data.forEach(function(d) {
-        d.date = parseDate(d.date);
-        d.close = d.close;
-        d.type= d.type;
-        console.log(d.date)
-        console.log(parseDate("2016-Mar-06"))
-    });
+
 // Set the ranges
 var x = d3.time.scale().range([0, width]);
 var y = d3.scale.linear().range([height, 0]);
@@ -123,8 +68,30 @@ var focus = svg.append("g")
 
 // Get the data
 
-
-
+var data = [{
+    "date": "26-Mar-12",
+    "close": "2000"
+}, {
+"date": "26-Mar-15",
+    "close": "2090"
+}, {
+ "date": "26-Mar-16",
+    "close": "2600"
+}, {
+ "date": "26-Mar-17",
+    "close": "2300"
+}, {
+ "date": "26-Mar-18",
+    "close": "2000"
+}, {
+"date": "26-Mar-19",
+    "close": "2222"
+}];
+console.log(data[0])
+    data.forEach(function(d) {
+        d.date = parseDate(d.date);
+        d.close = +d.close;
+    });
 
     // Scale the range of the data
     x.domain(d3.extent(data, function(d) { return d.date; }));
@@ -146,7 +113,7 @@ var focus = svg.append("g")
         .attr("class", "y axis")
         .call(yAxis);
 
-   // append the x line create the dotted line of the x axis when you focus like a target     
+   // append the x line
     focus.append("line")
         .attr("class", "x")
         .style("stroke", "blue")
@@ -158,30 +125,29 @@ var focus = svg.append("g")
     // append the y line
     focus.append("line")
         .attr("class", "y")
-        .style("stroke", "red")
+        .style("stroke", "blue")
         .style("stroke-dasharray", "3,3")
         .style("opacity", 0.5)
         .attr("x1", width)
         .attr("x2", width);
 
-    // append the circle at the intersection size and color of crile
+    // append the circle at the intersection
     focus.append("circle")
         .attr("class", "y")
         .style("fill", "none")
         .style("stroke", "blue")
-        .attr("r", 10);
+        .attr("r", 4);
 
     // place the value at the intersection
     focus.append("text")
         .attr("class", "y1")
         .style("stroke", "white")
-        .style("stroke-width", "9.5px")
+        .style("stroke-width", "3.5px")
         .style("opacity", 0.8)
         .attr("dx", 8)
-        .attr("dy", "-.9em");
+        .attr("dy", "-.3em");
     focus.append("text")
         .attr("class", "y2")
-        
         .attr("dx", 8)
         .attr("dy", "-.3em");
 
@@ -230,7 +196,7 @@ var focus = svg.append("g")
 		    .attr("transform",
 		          "translate(" + x(d.date) + "," +
 		                         y(d.close) + ")")
-		    .text(d.close + " "+ d.type);    // displays the value of the data point 
+		    .text(d.close);
 
 		focus.select("text.y3")
 		    .attr("transform",
@@ -258,6 +224,6 @@ var focus = svg.append("g")
 	}
 
 ;
-   });
+
 </script>
 </body>
