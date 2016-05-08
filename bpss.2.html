@@ -14,7 +14,7 @@ svg {
 .line {
   stroke-width: 1;
   fill: none;
-   /*stroke-dasharray: 10;*/
+  clip-path: url(#clip);
 }
 div.tooltip {	
     position: absolute;			
@@ -34,7 +34,11 @@ div.tooltip {
   fill: none;
   clip-path: url(#clip);
 }
-
+.area {
+  clip-path: url(#clip);
+  stroke-width: 0;
+  opacity: 0.7;
+}
 
 .axis path,
 .axis line {
@@ -51,7 +55,18 @@ div.tooltip {
 
 /* Statistic lines */
 
+.meanline {
+  stroke: blue;
+  fill: none;
+  stroke-width: 2;
+  clip-path: url(#clip);
+}
 
+.meanline-label {
+  fill: blue;
+  stroke-width: 1;
+  font-size: 14px;
+}
 
 .sdline {
   stroke: red;
@@ -61,12 +76,20 @@ div.tooltip {
   clip-path: url(#clip);
 }
 
+.sdline-label {
+  fill: red;
+  stroke-width: 1;
+  font-size: 14px;
+}
 
-
+.label {
+  fill: black;
+  stroke-width: 1;
+  font-size: 14px;
+}
 </style>
-<h1 id="patient_name"></h1>
-<dd3></dd3>
-<body></body>
+<body>
+<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
 <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
  	<script type="text/javascript" src="https://cdn.rawgit.com/smart-on-fhir/client-js/v0.1.1/dist/fhir-client.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
@@ -121,16 +144,16 @@ pt.read()
             console.log(datas[0])
 // A more advanced query: search for active Prescriptions, including med 
 var margin = {top: 10, right: 10, bottom: 100, left: 40},
-    margin2 = {top: 330, right: 10, bottom: 50, left: 40},
+    margin2 = {top: 230, right: 10, bottom: 20, left: 40},
     width = 1000 - margin.left - margin.right,
-    height = 400 - margin.top - margin.bottom,
-    height2 = 400 - margin2.top - margin2.bottom;
+    height = 300 - margin.top - margin.bottom,
+    height2 = 300 - margin2.top - margin2.bottom;
 
 var parseDate = d3.time.format("%Y-%m-%d").parse;
 var formatTime = d3.time.format("%e %B");
+var color = "#27ae60";
 
-
-var x = d3.time.scale().range([0, width]),
+var x = d3.time.scale().range([0, width+100]),
     x2 = d3.time.scale().range([0, width]),
     y = d3.scale.linear().range([height, 10]),
     y2 = d3.scale.linear().range([height2, 0]);
@@ -143,8 +166,7 @@ var brush = d3.svg.brush()
     .x(x2)
     .on("brush", brushed)
     .on("brushend", brushend);
-    
-var div = d3.select("dd3").append("div")	
+var div = d3.select("body").append("div")	
     .attr("class", "tooltip")				
     .style("opacity", 0);
 
@@ -152,12 +174,11 @@ var div = d3.select("dd3").append("div")
 var line = d3.svg.line()
   .interpolate("monotone")
   .x(function(d) { return x(d.date); })
-  .y(50);
-  
+  .y(function(d) { return y(d.bloodp); });
   var line3 = d3.svg.line()
   .interpolate("monotone")
   .x(function(d) { return x(d.date); })
-  .y(50);
+  .y(function(d) { return y(d.bloodp-10); });
 
 
 var line2 = d3.svg.line()
@@ -165,7 +186,7 @@ var line2 = d3.svg.line()
   .x(function(d) { return x2(d.date); })
   .y(function(d) { return y2(d.bloodp); });
 
-var svg = d3.select("dd3").append("svg")
+var svg = d3.select("body").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom);
 
@@ -192,52 +213,27 @@ data.forEach(function(d) {
 });
 
 x.domain(d3.extent(data.map(function(d) { return d.date; })));
-y.domain([0, 200]);
+y.domain([0, d3.max(data.map(function(d) { return d.bloodp; }))]);
 x2.domain(x.domain());
-y2.domain([0,200]);
+y2.domain(y.domain());
 
     
-
-focus.append("path")
-      .datum(data)
-      .attr("clip-path", "url(#clip)")
-      .attr("class", "line")
-      .attr("stroke", "blue")
-      .attr("d", line);
-focus.append("path")
-      .datum(data)
-      .attr("clip-path", "url(#clip)")
-      .attr("class", "lin3e")
-      .attr("stroke", "red")
-      .attr("d", line3);
-      
 focus.append("g")
     .attr("class", "x axis")
     .attr("transform", "translate(0," + height + ")")
     .call(xAxis);
+
 focus.append("g")
     .attr("class", "y axis")
     .call(yAxis)
     .append("text")
     .attr("transform", "rotate(-90)")
     // .attr("x", width)
-    // .attr("y", -margin.bottom)
+    .attr("y", -margin.bottom)
     // .attr("dy", ".71em")
-    // .style("text-anchor", "end")
-    // .text("YAxis");
-  
-context.append("g")
-    .attr("class", "x axis")
-    .attr("transform", "translate(0," + height2 + ")")
-    .call(xAxis2);
-
-context.append("g")
-    .attr("class", "x brush")
-    .call(brush)
-  .selectAll("rect")
-    .attr("y", -10)
-    .attr("height", height2 + 7);
-  
+    .style("text-anchor", "end")
+    .text("YAxis");
+    
 
 var dots1= context.append("g");
     dots1.attr("clip-path", "url(#clip)");
@@ -251,8 +247,17 @@ dots1.selectAll("dot")
         .attr("cy", function(d) { return y(d.bloodp); });
         
 
+context.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height2 + ")")
+    .call(xAxis2);
 
-
+context.append("g")
+    .attr("class", "x brush")
+    .call(brush)
+  .selectAll("rect")
+    .attr("y", -6)
+    .attr("height", height2 + 7);
 
  var dots = focus.append("g");
     dots.attr("clip-path", "url(#clip)");
